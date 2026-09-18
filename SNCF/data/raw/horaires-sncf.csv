@@ -1,0 +1,7 @@
+﻿Données;Format;Download
+Horaires des lignes SNCF théorique;GTFS;https://eu.ftp.opendatasoft.com/sncf/plandata/Export_OpenData_SNCF_GTFS_NewTripId.zip
+Horaires des lignes SNCF théorique;NeTEx;https://eu.ftp.opendatasoft.com/sncf/plandata/export-opendata-sncf-netex.zip
+Informations temps réel sur les circulations SNCF;GTFS-RT;https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-service-alerts
+Informations temps réel sur les circulations SNCF;SIRI SX LITE;https://proxy.transport.data.gouv.fr/resource/sncf-siri-lite-situation-exchange
+Horaires des lignes SNCF en temps réel;GTFS-RT;https://proxy.transport.data.gouv.fr/resource/sncf-gtfs-rt-trip-updates
+Horaires des lignes SNCF en temps réel;SIRI ET LITE;https://proxy.transport.data.gouv.fr/resource/sncf-siri-lite-estimated-timetable
