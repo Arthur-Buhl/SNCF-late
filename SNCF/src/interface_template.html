@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Régularité TGV</title>
+<style>
+:root {
+  --bg: #f6f5f1; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6a65; --line: #e3e1da;
+  --accent: #8a1538; --accent-soft: #f3e3e8; --bar: #c9a2ad; --good: #2f7d4f; --bad: #b3261e;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #151514; --panel: #1f1f1d; --text: #ecebe6; --muted: #9c9a93; --line: #34332f;
+          --accent: #e0708f; --accent-soft: #3a2029; --bar: #7d4a58; --good: #6fc08e; --bad: #f08a80; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { padding: 24px 16px 8px; max-width: 1100px; margin: 0 auto; }
+h1 { margin: 0 0 4px; font-size: 22px; }
+.sub { color: var(--muted); font-size: 13px; }
+main { max-width: 1100px; margin: 0 auto; padding: 0 16px 48px; }
+.filtres, .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-top: 14px; }
+.filtres { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; }
+label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+select, input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+.gares { display: flex; align-items: end; gap: 10px; margin-bottom: 14px; }
+.gares label { flex: 1 1 0; font-size: 13px; color: var(--text); font-weight: 600; }
+#inverser { font: inherit; font-size: 18px; border: 1px solid var(--line); background: var(--bg); color: var(--text); border-radius: 6px; width: 42px; height: 42px; cursor: pointer; flex: none; }
+#inverser:hover { border-color: var(--accent); color: var(--accent); }
+.combo { position: relative; }
+.combo input { width: 100%; font-size: 16px; padding: 9px 30px 9px 11px; border-width: 2px; font-weight: 400;
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23888' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 11px center; }
+.combo input:focus { outline: none; border-color: var(--accent); }
+.combo.choisi input { border-color: var(--accent); font-weight: 600; }
+.combo ul { position: absolute; z-index: 10; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none;
+  max-height: 300px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.combo li { padding: 7px 10px; border-radius: 5px; cursor: pointer; font-weight: 400; font-size: 14px; }
+.combo li.actif { background: var(--accent-soft); color: var(--accent); }
+.combo li mark { background: none; color: inherit; font-weight: 700; text-decoration: underline; }
+.combo li.aucun { color: var(--muted); cursor: default; }
+.check { flex-direction: row; align-items: center; gap: 6px; color: var(--text); font-size: 14px; }
+.tabs { display: flex; gap: 6px; margin-top: 18px; }
+.tabs button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 8px 16px; border-radius: 8px; cursor: pointer; }
+.tabs button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { font: inherit; border: 0; background: var(--bg); color: var(--text); padding: 6px 12px; cursor: pointer; }
+.seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+td.n, th.n { text-align: right; white-space: nowrap; }
+.rang { color: var(--muted); width: 36px; }
+.barre { position: relative; min-width: 140px; }
+.barre span { display: block; height: 10px; background: var(--bar); border-radius: 3px; }
+.wrap { overflow-x: auto; }
+.total td { font-weight: 700; border-top: 2px solid var(--text); border-bottom: 0; }
+.chiffre { font-size: 30px; font-weight: 700; color: var(--accent); }
+.kpis { display: flex; flex-wrap: wrap; gap: 24px; margin: 6px 0 14px; }
+.kpis div small { display: block; color: var(--muted); font-size: 12px; }
+.route { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-top: 12px; }
+.route h3 { margin: 0 0 6px; font-size: 15px; }
+.muted { color: var(--muted); }
+.vide { padding: 20px 0; color: var(--muted); }
+.corresp { font-size: 12px; color: var(--muted); padding-left: 18px; }
+@media (max-width: 640px) { .barre { display: none; } label { flex: 1 1 100%; }
+  .gares { flex-direction: column; align-items: stretch; } .gares label { flex: none; } #inverser { align-self: center; transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Régularité TGV</h1>
+  <div class="sub" id="periode"></div>
+</header>
+<main>
+  <div class="filtres">
+    <label>Année début <select id="anDeb"></select></label>
+    <label>Année fin <select id="anFin"></select></label>
+    <label>Service
+      <select id="service"><option value="tous">Tous</option><option value="0">National</option><option value="1">International</option></select>
+    </label>
+  </div>
+
+  <div class="tabs">
+    <button data-tab="trajet" class="on">Retard d'un trajet</button>
+    <button data-tab="classement">Classement des départs</button>
+  </div>
+
+  <section id="classement" class="panel" hidden>
+    <div class="filtres" style="border:0;padding:0;margin:0 0 12px">
+      <label>Regrouper par
+        <select id="groupe"><option value="liaison">Liaison</option><option value="dep">Gare de départ</option><option value="arr">Gare d'arrivée</option></select>
+      </label>
+      <label>Ordre
+        <span class="seg" id="ordre"><button data-v="desc" class="on">Le plus de départs</button><button data-v="asc">Le moins de départs</button></span>
+      </label>
+      <label>Afficher
+        <select id="topN"><option>10</option><option selected>20</option><option>50</option><option value="9999">Tout</option></select>
+      </label>
+      <label>Filtrer <input id="recherche" placeholder="ex. LYON"></label>
+    </div>
+    <div class="wrap"><table id="tabClassement"></table></div>
+  </section>
+
+  <section id="trajet" class="panel">
+    <div class="gares">
+      <label>Départ
+        <div class="combo" id="comboA"><input placeholder="Rechercher une gare…" autocomplete="off"><ul hidden></ul></div>
+      </label>
+      <button id="inverser" title="Inverser départ et arrivée" aria-label="Inverser départ et arrivée">⇄</button>
+      <label>Arrivée
+        <div class="combo" id="comboB"><input placeholder="Rechercher une gare…" autocomplete="off"><ul hidden></ul></div>
+      </label>
+    </div>
+    <div class="filtres" style="border:0;padding:0;margin:0 0 6px">
+      <label>Retard additionné
+        <select id="metrique">
+          <option value="ret">Retard moyen des trains en retard</option>
+          <option value="tous">Retard moyen tous trains</option>
+        </select>
+      </label>
+      <label>Correspondances max
+        <select id="maxLegs"><option value="1">0 (direct)</option><option value="2">1</option><option value="3" selected>2</option></select>
+      </label>
+      <label class="check"><input type="checkbox" id="paris" checked> Traversée de Paris autorisée (gares parisiennes reliées)</label>
+    </div>
+    <div id="resultatTrajet" class="vide">Choisis une gare de départ et une gare d'arrivée.</div>
+  </section>
+</main>
+
+<script>
+const DATA = __DATA__;
+const C = Object.fromEntries(DATA.cols.map((c, i) => [c, i]));
+const G = DATA.gares;
+const $ = id => document.getElementById(id);
+const fmt = (x, d = 0) => x == null || isNaN(x) ? "–" : x.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
+const estParis = g => g.startsWith("PARIS ");
+
+$("periode").textContent = `Données SNCF – régularité mensuelle TGV (AQST), ${DATA.periode[0]} à ${DATA.periode[1]} · ${G.length} gares`;
+const annees = [...new Set(DATA.lignes.map(l => l[C.annee]))].sort();
+for (const a of annees) { $("anDeb").add(new Option(a, a)); $("anFin").add(new Option(a, a)); }
+$("anFin").value = annees[annees.length - 1];
+
+function lignesFiltrees() {
+  const d = +$("anDeb").value, f = +$("anFin").value, s = $("service").value;
+  return DATA.lignes.filter(l => l[C.annee] >= Math.min(d, f) && l[C.annee] <= Math.max(d, f) && (s === "tous" || l[C.intl] === +s));
+}
+
+// Agrège les lignes par clé, en gardant les sommes pondérées pour les moyennes.
+function agreger(lignes, cle) {
+  const m = new Map();
+  for (const l of lignes) {
+    const k = cle(l);
+    let a = m.get(k);
+    if (!a) m.set(k, a = { k, dep: l[C.dep], arr: l[C.arr], v: new Array(DATA.cols.length).fill(0) });
+    for (let i = C.prevus; i < DATA.cols.length; i++) a.v[i] += l[i];
+  }
+  for (const a of m.values()) {
+    const v = a.v;
+    a.prevus = v[C.prevus]; a.circules = v[C.circules];
+    a.tauxAnnul = v[C.annules] / v[C.prevus] * 100;
+    a.ponct = 100 - v[C.retards] / v[C.circules] * 100;
+    a.retTous = v[C.p_tous] ? v[C.r_tous] / v[C.p_tous] : NaN;
+    a.retRet = v[C.p_ret] ? v[C.r_ret] / v[C.p_ret] : NaN;
+    a.duree = v[C.p_duree] ? v[C.duree] / v[C.p_duree] : NaN;
+  }
+  return [...m.values()];
+}
+
+// ---------- Classement ----------
+let ordre = "desc";
+function rendreClassement() {
+  const groupe = $("groupe").value;
+  const cle = groupe === "liaison" ? l => l[C.dep] + ">" + l[C.arr] : l => l[C[groupe]];
+  const nom = a => groupe === "liaison" ? `${G[a.dep]} → ${G[a.arr]}` : G[a.k];
+  const q = $("recherche").value.trim().toUpperCase();
+  let rows = agreger(lignesFiltrees(), cle).filter(a => !q || nom(a).includes(q));
+  rows.sort((x, y) => ordre === "desc" ? y.circules - x.circules : x.circules - y.circules);
+  const total = rows.length;
+  rows = rows.slice(0, +$("topN").value);
+  const max = Math.max(...rows.map(r => r.circules), 1);
+  $("tabClassement").innerHTML = `
+    <thead><tr><th class="rang">#</th><th>${groupe === "liaison" ? "Liaison" : "Gare"}</th>
+      <th class="n">Départs (circulés)</th><th class="barre"></th><th class="n">Prévus</th>
+      <th class="n">Ponctualité</th><th class="n">Retard moyen<br>trains en retard</th><th class="n">Annulation</th></tr></thead>
+    <tbody>${rows.map((r, i) => `<tr>
+      <td class="rang">${ordre === "desc" ? i + 1 : total - i}</td><td>${nom(r)}</td>
+      <td class="n">${fmt(r.circules)}</td>
+      <td class="barre"><span style="width:${r.circules / max * 100}%"></span></td>
+      <td class="n">${fmt(r.prevus)}</td>
+      <td class="n">${fmt(r.ponct, 1)} %</td>
+      <td class="n">${fmt(r.retRet, 1)} min</td>
+      <td class="n">${fmt(r.tauxAnnul, 1)} %</td></tr>`).join("") || `<tr><td colspan="8" class="vide">Aucun résultat.</td></tr>`}</tbody>`;
+}
+
+// ---------- Trajet ----------
+function trouverRoutes(a, b, liaisons, maxLegs, paris) {
+  const sortants = new Map();
+  for (const l of liaisons) {
+    if (!sortants.has(l.dep)) sortants.set(l.dep, []);
+    sortants.get(l.dep).push(l);
+  }
+  // Avec la traversée de Paris, toutes les gares parisiennes sont un même nœud.
+  const noeud = i => paris && estParis(G[i]) ? "PARIS" : String(i);
+  const departsDepuis = n => n === "PARIS"
+    ? G.flatMap((g, i) => estParis(g) ? (sortants.get(i) || []) : [])
+    : (sortants.get(+n) || []);
+  const cible = noeud(b), routes = [];
+  (function dfs(n, chemin, vus) {
+    if (chemin.length && n === cible) { routes.push([...chemin]); return; }
+    if (chemin.length >= maxLegs) return;
+    for (const l of departsDepuis(n)) {
+      const suiv = noeud(l.arr);
+      if (vus.has(suiv)) continue;
+      vus.add(suiv); chemin.push(l);
+      dfs(suiv, chemin, vus);
+      chemin.pop(); vus.delete(suiv);
+    }
+  })(noeud(a), [], new Set([noeud(a)]));
+  return routes;
+}
+
+// ---------- Selects avec recherche ----------
+const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase()
+  .replace(/[^A-Z0-9]+/g, " ").replace(/\bSAINT\b/g, "ST").replace(/\s+/g, " ").trim();
+const GN = G.map(norm);
+const echap = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+
+function creerCombo(el) {
+  const input = el.querySelector("input"), ul = el.querySelector("ul");
+  let valeur = -1, visibles = [], actif = 0;
+  const afficher = () => {
+    const t = norm(input.value);
+    // Les gares dont le nom commence par la recherche passent devant.
+    visibles = G.map((g, i) => i)
+      .filter(i => !t || (" " + GN[i]).includes(" " + t) || GN[i].includes(t))
+      .sort((x, y) => (GN[y].startsWith(t) - GN[x].startsWith(t)) || G[x].localeCompare(G[y]));
+    actif = Math.min(actif, Math.max(visibles.length - 1, 0));
+    ul.innerHTML = visibles.length ? visibles.map((i, k) => {
+      const pos = t ? GN[i].indexOf(t) : -1;
+      const nom = pos >= 0 ? echap(G[i].slice(0, pos)) + "<mark>" + echap(G[i].slice(pos, pos + t.length)) + "</mark>" + echap(G[i].slice(pos + t.length)) : echap(G[i]);
+      return `<li data-i="${i}" class="${k === actif ? "actif" : ""}">${nom}</li>`;
+    }).join("") : `<li class="aucun">Aucune gare trouvée</li>`;
+    ul.hidden = false;
+    ul.querySelector(".actif")?.scrollIntoView({ block: "nearest" });
+  };
+  const choisir = i => {
+    valeur = i;
+    input.value = i >= 0 ? G[i] : "";
+    el.classList.toggle("choisi", i >= 0);
+    ul.hidden = true;
+    rendreTrajet();
+  };
+  input.addEventListener("focus", () => { input.select(); actif = 0; afficher(); });
+  input.addEventListener("click", afficher);
+  input.addEventListener("input", () => { actif = 0; afficher(); });
+  input.addEventListener("keydown", e => {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      if (ul.hidden) return afficher();
+      actif = (actif + (e.key === "ArrowDown" ? 1 : -1) + visibles.length) % Math.max(visibles.length, 1);
+      afficher();
+    } else if (e.key === "Enter" && !ul.hidden && visibles.length) {
+      e.preventDefault(); choisir(visibles[actif]); input.blur();
+    } else if (e.key === "Escape") {
+      input.value = valeur >= 0 ? G[valeur] : ""; ul.hidden = true; input.blur();
+    }
+  });
+  // mousedown plutôt que click pour passer avant le blur de l'input.
+  ul.addEventListener("mousedown", e => {
+    const li = e.target.closest("li[data-i]");
+    e.preventDefault();
+    if (li) { choisir(+li.dataset.i); input.blur(); }
+  });
+  input.addEventListener("blur", () => {
+    ul.hidden = true;
+    input.value = valeur >= 0 ? G[valeur] : "";
+  });
+  return { get valeur() { return valeur; }, set valeur(i) { choisir(i); } };
+}
+
+function meilleureRoute(a, b, liaisons, champ) {
+  return trouverRoutes(a, b, liaisons, +$("maxLegs").value, $("paris").checked)
+    .map(r => ({ legs: r, retard: r.reduce((s, l) => s + (l[champ] || 0), 0), duree: r.reduce((s, l) => s + (l.duree || 0), 0) }))
+    .sort((x, y) => x.legs.length - y.legs.length || x.retard - y.retard);
+}
+
+let comboA, comboB;
+function rendreTrajet() {
+  const out = $("resultatTrajet");
+  if (!comboA || !comboB) return;
+  const a = comboA.valeur, b = comboB.valeur;
+  if (a < 0 || b < 0) { out.className = "vide"; out.textContent = "Choisis une gare de départ et une gare d'arrivée."; return; }
+  if (a === b) { out.className = "vide"; out.textContent = "Le départ et l'arrivée sont la même gare."; return; }
+
+  const met = $("metrique").value, champ = met === "tous" ? "retTous" : "retRet";
+  const liaisons = agreger(lignesFiltrees(), l => l[C.dep] + ">" + l[C.arr]);
+  out.className = "";
+  const arrets = [a, b];
+  const routes = meilleureRoute(a, b, liaisons, champ).slice(0, 5);
+  if (!routes.length) {
+    out.innerHTML = `<p class="vide">Aucun trajet trouvé pour ${arrets.map(g => `<b>${G[g]}</b>`).join(" → ")} avec ces filtres. Essaie d'augmenter les correspondances ou d'autoriser la traversée de Paris.</p>`;
+    return;
+  }
+  const best = routes[0];
+  const libelle = met === "tous" ? "retard moyen tous trains (à l'arrivée)" : "retard moyen des trains en retard (à l'arrivée)";
+  out.innerHTML = `
+    <div class="kpis">
+      <div><small>Retard moyen cumulé du trajet</small><span class="chiffre">${fmt(best.retard, 1)} min</span></div>
+      <div><small>Durée cumulée</small><b>${fmt(best.duree)} min</b></div>
+      <div><small>Correspondances</small><b>${best.legs.length - 1}</b></div>
+    </div>
+    <p class="muted" style="margin:0">Somme du ${libelle} de chaque liaison, sur ${$("anDeb").value}–${$("anFin").value}. ${routes.length > 1 ? "Autres itinéraires classés dessous." : ""}</p>
+    ${routes.map((r, i) => `<div class="route"><h3>${i === 0 ? "Meilleur itinéraire" : "Alternative " + i} · ${fmt(r.retard, 1)} min de retard cumulé</h3>
+      <div class="wrap"><table>
+        <thead><tr><th>Liaison</th><th class="n">Durée moy.</th><th class="n">Départs</th><th class="n">Ponctualité</th>
+          <th class="n">Retard moy.<br>trains en retard</th><th class="n">Retard moy.<br>tous trains</th></tr></thead>
+        <tbody>${r.legs.map((l, j) => {
+          const prev = r.legs[j - 1];
+          const change = prev && prev.arr !== l.dep ? `<tr><td colspan="6" class="corresp">↳ changement de gare : ${G[prev.arr]} → ${G[l.dep]}</td></tr>` : "";
+          return change + `<tr><td>${G[l.dep]} → ${G[l.arr]}</td><td class="n">${fmt(l.duree)} min</td><td class="n">${fmt(l.circules)}</td>
+            <td class="n">${fmt(l.ponct, 1)} %</td><td class="n">${fmt(l.retRet, 1)} min</td><td class="n">${fmt(l.retTous, 1)} min</td></tr>`;
+        }).join("")}
+        <tr class="total"><td>Total</td><td class="n">${fmt(r.duree)} min</td><td></td><td></td>
+          <td class="n">${fmt(r.legs.reduce((s, l) => s + (l.retRet || 0), 0), 1)} min</td>
+          <td class="n">${fmt(r.legs.reduce((s, l) => s + (l.retTous || 0), 0), 1)} min</td></tr>
+        </tbody></table></div></div>`).join("")}`;
+}
+
+// ---------- Événements ----------
+function rendre() { rendreClassement(); rendreTrajet(); }
+document.querySelectorAll(".tabs button").forEach(btn => btn.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === btn));
+  $("classement").hidden = btn.dataset.tab !== "classement";
+  $("trajet").hidden = btn.dataset.tab !== "trajet";
+});
+document.querySelectorAll("#ordre button").forEach(btn => btn.onclick = () => {
+  ordre = btn.dataset.v;
+  document.querySelectorAll("#ordre button").forEach(x => x.classList.toggle("on", x === btn));
+  rendreClassement();
+});
+["anDeb", "anFin", "service"].forEach(id => $(id).onchange = rendre);
+["groupe", "topN"].forEach(id => $(id).onchange = rendreClassement);
+$("recherche").oninput = rendreClassement;
+comboA = creerCombo($("comboA"));
+comboB = creerCombo($("comboB"));
+$("inverser").onclick = () => { const a = comboA.valeur, b = comboB.valeur; comboA.valeur = b; comboB.valeur = a; };
+["metrique", "maxLegs", "paris"].forEach(id => $(id).onchange = rendreTrajet);
+rendre();
+</script>
+</body>
+</html>
