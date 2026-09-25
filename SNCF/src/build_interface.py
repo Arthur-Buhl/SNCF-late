@@ -10,6 +10,16 @@ SRC = ROOT / "data" / "processed" / "regularite_clean.csv"
 TEMPLATE = Path(__file__).resolve().parent / "interface_template.html"
 OUT = ROOT / "interface.html"
 
+# Colonne source -> nom court exporté vers l'interface.
+CAUSES = {
+    "prct_cause_externe": "c_externe",
+    "prct_cause_infra": "c_infra",
+    "prct_cause_gestion_trafic": "c_trafic",
+    "prct_cause_materiel_roulant": "c_materiel",
+    "prct_cause_gestion_gare": "c_gare",
+    "prct_cause_prise_en_charge_voyageurs": "c_voyageurs",
+}
+
 
 def agreger(df):
     df = df.copy()
@@ -19,6 +29,11 @@ def agreger(df):
     df["_poids_en_retard"] = df["nb_train_retard_arrivee"].where(df["retard_moyen_arrivee"].notna(), 0)
     df["_duree"] = df["duree_moyenne"] * df["nb_circules"]
     df["_poids_duree"] = df["nb_circules"].where(df["duree_moyenne"].notna(), 0)
+    # Causes : pourcentages pondérés par le nombre de trains en retard du mois.
+    avec_causes = df[list(CAUSES)].notna().all(axis=1)
+    df["_poids_causes"] = df["nb_train_retard_arrivee"].where(avec_causes, 0)
+    for src, nom in CAUSES.items():
+        df[nom] = (df[src] * df["_poids_causes"]).fillna(0)
 
     g = df.groupby(["gare_depart", "gare_arrivee", "service", "annee"], as_index=False).agg(
         prevus=("nb_train_prevu", "sum"),
@@ -32,6 +47,8 @@ def agreger(df):
         p_ret=("_poids_en_retard", "sum"),
         duree=("_duree", "sum"),
         p_duree=("_poids_duree", "sum"),
+        p_causes=("_poids_causes", "sum"),
+        **{nom: (nom, "sum") for nom in CAUSES.values()},
     )
     return g
 
@@ -41,7 +58,7 @@ def main():
     g = agreger(df)
     gares = sorted(set(g["gare_depart"]) | set(g["gare_arrivee"]))
     idx = {gare: i for i, gare in enumerate(gares)}
-    cols = ["prevus", "circules", "annules", "retards", "sup60", "r_tous", "p_tous", "r_ret", "p_ret", "duree", "p_duree"]
+    cols = ["prevus", "circules", "annules", "retards", "sup60", "r_tous", "p_tous", "r_ret", "p_ret", "duree", "p_duree", "p_causes", *CAUSES.values()]
     lignes = [
         [idx[r.gare_depart], idx[r.gare_arrivee], int(r.service == "INTERNATIONAL"), int(r.annee)]
         + [round(float(getattr(r, c)), 1) for c in cols]

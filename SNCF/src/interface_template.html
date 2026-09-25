@@ -8,10 +8,12 @@
 :root {
   --bg: #f6f5f1; --panel: #ffffff; --text: #1d1d1b; --muted: #6b6a65; --line: #e3e1da;
   --accent: #8a1538; --accent-soft: #f3e3e8; --bar: #c9a2ad; --good: #2f7d4f; --bad: #b3261e;
+  --cause0: #4e79a7; --cause1: #e1812c; --cause2: #8a1538; --cause3: #59a14f; --cause4: #b07aa1; --cause5: #c9a227;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #151514; --panel: #1f1f1d; --text: #ecebe6; --muted: #9c9a93; --line: #34332f;
-          --accent: #e0708f; --accent-soft: #3a2029; --bar: #7d4a58; --good: #6fc08e; --bad: #f08a80; }
+          --accent: #e0708f; --accent-soft: #3a2029; --bar: #7d4a58; --good: #6fc08e; --bad: #f08a80;
+          --cause0: #7aa6d6; --cause1: #f0a060; --cause2: #e0708f; --cause3: #85c77b; --cause4: #cfa1c4; --cause5: #e3c55a; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
@@ -55,6 +57,16 @@ td.n, th.n { text-align: right; white-space: nowrap; }
 .wrap { overflow-x: auto; }
 .total td { font-weight: 700; border-top: 2px solid var(--text); border-bottom: 0; }
 .chiffre { font-size: 30px; font-weight: 700; color: var(--accent); }
+.causes { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-top: 14px; }
+.causes h3 { margin: 0 0 4px; font-size: 15px; }
+.pile { display: flex; height: 22px; border-radius: 5px; overflow: hidden; gap: 2px; background: var(--line); }
+.pile span { display: block; height: 100%; }
+.causes-legs .pile { height: 12px; }
+.causes-legs td { font-size: 13px; }
+.legende { list-style: none; padding: 0; margin: 10px 0 4px; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 16px; font-size: 13px; }
+.legende li { display: flex; align-items: center; gap: 8px; }
+.legende i { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.legende b { margin-left: auto; font-variant-numeric: tabular-nums; }
 .kpis { display: flex; flex-wrap: wrap; gap: 24px; margin: 6px 0 14px; }
 .kpis div small { display: block; color: var(--muted); font-size: 12px; }
 .route { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-top: 12px; }
@@ -131,6 +143,14 @@ td.n, th.n { text-align: right; white-space: nowrap; }
 const DATA = __DATA__;
 const C = Object.fromEntries(DATA.cols.map((c, i) => [c, i]));
 const G = DATA.gares;
+const CAUSES = [
+  { col: "c_externe", nom: "Causes externes (météo, obstacles, malveillance…)" },
+  { col: "c_infra", nom: "Infrastructure (voies, signalisation, travaux)" },
+  { col: "c_trafic", nom: "Gestion du trafic" },
+  { col: "c_materiel", nom: "Matériel roulant" },
+  { col: "c_gare", nom: "Gestion en gare" },
+  { col: "c_voyageurs", nom: "Prise en charge des voyageurs" },
+];
 const $ = id => document.getElementById(id);
 const fmt = (x, d = 0) => x == null || isNaN(x) ? "–" : x.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d });
 const estParis = g => g.startsWith("PARIS ");
@@ -162,6 +182,7 @@ function agreger(lignes, cle) {
     a.retTous = v[C.p_tous] ? v[C.r_tous] / v[C.p_tous] : NaN;
     a.retRet = v[C.p_ret] ? v[C.r_ret] / v[C.p_ret] : NaN;
     a.duree = v[C.p_duree] ? v[C.duree] / v[C.p_duree] : NaN;
+    a.causes = v[C.p_causes] ? CAUSES.map(c => v[C[c.col]] / v[C.p_causes]) : null;
   }
   return [...m.values()];
 }
@@ -284,6 +305,27 @@ function meilleureRoute(a, b, liaisons, champ) {
     .sort((x, y) => x.legs.length - y.legs.length || x.retard - y.retard);
 }
 
+// ---------- Causes du retard ----------
+const barreCauses = parts => `<div class="pile">${parts.map((p, i) => p > 0
+  ? `<span style="width:${p}%;background:var(--cause${i})" title="${CAUSES[i].nom} : ${fmt(p, 1)} %"></span>` : "").join("")}</div>`;
+
+// Sur un trajet à plusieurs liaisons, chaque liaison pèse selon sa part du retard cumulé.
+function blocCauses(route, champ) {
+  const legs = route.legs.filter(l => l.causes);
+  if (!legs.length) return "";
+  const poids = legs.map(l => l[champ] || 0), total = poids.reduce((s, p) => s + p, 0) || 1;
+  const parts = CAUSES.map((_, i) => legs.reduce((s, l, j) => s + l.causes[i] * poids[j], 0) / total);
+  const ordre = parts.map((p, i) => i).sort((x, y) => parts[y] - parts[x]);
+  return `<div class="causes">
+    <h3>Causes du retard</h3>
+    <p class="muted" style="margin:0 0 10px;font-size:13px">Cause principale : <b style="color:var(--text)">${CAUSES[ordre[0]].nom.toLowerCase()}</b> (${fmt(parts[ordre[0]], 0)} % des retards). Part moyenne de chaque cause dans les trains arrivés en retard.</p>
+    ${barreCauses(parts)}
+    <ul class="legende">${ordre.map(i => `<li><i style="background:var(--cause${i})"></i>${CAUSES[i].nom} <b>${fmt(parts[i], 1)} %</b></li>`).join("")}</ul>
+    ${route.legs.length > 1 ? `<table class="causes-legs"><tbody>${route.legs.map(l => `<tr><td>${G[l.dep]} → ${G[l.arr]}</td>
+      <td style="width:55%">${l.causes ? barreCauses(l.causes) : `<span class="muted">Pas de données</span>`}</td></tr>`).join("")}</tbody></table>` : ""}
+  </div>`;
+}
+
 let comboA, comboB;
 function rendreTrajet() {
   const out = $("resultatTrajet");
@@ -310,6 +352,7 @@ function rendreTrajet() {
       <div><small>Correspondances</small><b>${best.legs.length - 1}</b></div>
     </div>
     <p class="muted" style="margin:0">Somme du ${libelle} de chaque liaison, sur ${$("anDeb").value}–${$("anFin").value}. ${routes.length > 1 ? "Autres itinéraires classés dessous." : ""}</p>
+    ${blocCauses(best, champ)}
     ${routes.map((r, i) => `<div class="route"><h3>${i === 0 ? "Meilleur itinéraire" : "Alternative " + i} · ${fmt(r.retard, 1)} min de retard cumulé</h3>
       <div class="wrap"><table>
         <thead><tr><th>Liaison</th><th class="n">Durée moy.</th><th class="n">Départs</th><th class="n">Ponctualité</th>
